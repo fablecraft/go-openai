@@ -12,13 +12,18 @@ import (
 
 // Whisper Defines the models provided by OpenAI to use when processing audio with OpenAI.
 const (
-	Whisper1 = "whisper-1"
+	Whisper1           = "whisper-1"
+	ResponseFormatJSON = "json"
+	ResponseFormatVTT  = "vtt"
+	ResponseFormatText = "text"
 )
 
 // AudioRequest represents a request structure for audio API.
 type AudioRequest struct {
-	Model    string
-	FilePath string
+	Model          string
+	FilePath       string
+	ResponseFormat string
+	Prompt         string
 }
 
 // AudioResponse represents a response structure for audio API.
@@ -94,6 +99,27 @@ func audioMultipartForm(request AudioRequest, w *multipart.Writer) error {
 	if _, err = io.Copy(fw, modelName); err != nil {
 		return fmt.Errorf("writing model name: %w", err)
 	}
+
+	fw, err = w.CreateFormField("response_format")
+	if err != nil {
+		return fmt.Errorf("creating form field: %w", err)
+	}
+
+	responseFormat := bytes.NewReader([]byte(request.ResponseFormat))
+	if _, err = io.Copy(fw, responseFormat); err != nil {
+		return fmt.Errorf("writing response format: %w", err)
+	}
+
+	fw, err = w.CreateFormField("prompt")
+	if err != nil {
+		return fmt.Errorf("creating form field: %w", err)
+	}
+
+	prompt := bytes.NewReader([]byte(request.ResponseFormat))
+	if _, err = io.Copy(fw, prompt); err != nil {
+		return fmt.Errorf("writing prompt: %w", err)
+	}
+
 	w.Close()
 
 	return nil
