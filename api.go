@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -68,10 +69,18 @@ func (c *Client) sendRequest(req *http.Request, v interface{}) error {
 		errRes.Error.StatusCode = res.StatusCode
 		return fmt.Errorf("error, status code: %d, message: %w", res.StatusCode, errRes.Error)
 	}
-
 	if v != nil {
-		if err = json.NewDecoder(res.Body).Decode(v); err != nil {
-			return err
+		switch v.(type) {
+		case string:
+			v, err = io.ReadAll(res.Body)
+			if err != nil {
+				return err
+			}
+			return nil
+		default:
+			if err = json.NewDecoder(res.Body).Decode(v); err != nil {
+				return err
+			}
 		}
 	}
 

@@ -45,7 +45,34 @@ func (c *Client) CreateTranslation(
 	ctx context.Context,
 	request AudioRequest,
 ) (response AudioResponse, err error) {
+	if request.ResponseFormat != ResponseFormatJSON {
+		response, err := c.callAudioAPIRaw(ctx, request, "translations")
+		return AudioResponse{Text: response}, err
+	}
 	response, err = c.callAudioAPI(ctx, request, "translations")
+	return
+}
+
+func (c *Client) callAudioAPIRaw(
+	ctx context.Context,
+	request AudioRequest,
+	endpointSuffix string,
+) (response string, err error) {
+	var formBody bytes.Buffer
+	w := multipart.NewWriter(&formBody)
+
+	if err = audioMultipartForm(request, w); err != nil {
+		return
+	}
+
+	urlSuffix := fmt.Sprintf("/audio/%s", endpointSuffix)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.fullURL(urlSuffix), &formBody)
+	if err != nil {
+		return
+	}
+	req.Header.Add("Content-Type", w.FormDataContentType())
+
+	err = c.sendRequest(req, &response)
 	return
 }
 
