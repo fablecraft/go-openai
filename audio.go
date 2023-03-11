@@ -36,6 +36,10 @@ func (c *Client) CreateTranscription(
 	ctx context.Context,
 	request AudioRequest,
 ) (response AudioResponse, err error) {
+	if request.ResponseFormat != ResponseFormatJSON {
+		response, err := c.callAudioAPIRaw(ctx, request, "transcriptions")
+		return AudioResponse{Text: response}, err
+	}
 	response, err = c.callAudioAPI(ctx, request, "transcriptions")
 	return
 }
@@ -45,10 +49,6 @@ func (c *Client) CreateTranslation(
 	ctx context.Context,
 	request AudioRequest,
 ) (response AudioResponse, err error) {
-	if request.ResponseFormat != ResponseFormatJSON {
-		response, err := c.callAudioAPIRaw(ctx, request, "translations")
-		return AudioResponse{Text: response}, err
-	}
 	response, err = c.callAudioAPI(ctx, request, "translations")
 	return
 }
@@ -72,7 +72,7 @@ func (c *Client) callAudioAPIRaw(
 	}
 	req.Header.Add("Content-Type", w.FormDataContentType())
 
-	err = c.sendRequest(req, &response)
+	response, err = c.sendRequestRaw(req)
 	return
 }
 
