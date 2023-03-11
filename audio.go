@@ -45,7 +45,34 @@ func (c *Client) CreateTranslation(
 	ctx context.Context,
 	request AudioRequest,
 ) (response AudioResponse, err error) {
+	if request.ResponseFormat != ResponseFormatJSON {
+		response, err := c.callAudioAPIRaw(ctx, request, "translations")
+		return AudioResponse{Text: response}, err
+	}
 	response, err = c.callAudioAPI(ctx, request, "translations")
+	return
+}
+
+func (c *Client) callAudioAPIRaw(
+	ctx context.Context,
+	request AudioRequest,
+	endpointSuffix string,
+) (response string, err error) {
+	var formBody bytes.Buffer
+	w := multipart.NewWriter(&formBody)
+
+	if err = audioMultipartForm(request, w); err != nil {
+		return
+	}
+
+	urlSuffix := fmt.Sprintf("/audio/%s", endpointSuffix)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.fullURL(urlSuffix), &formBody)
+	if err != nil {
+		return
+	}
+	req.Header.Add("Content-Type", w.FormDataContentType())
+
+	err = c.sendRequest(req, &response)
 	return
 }
 
@@ -99,25 +126,27 @@ func audioMultipartForm(request AudioRequest, w *multipart.Writer) error {
 	if _, err = io.Copy(fw, modelName); err != nil {
 		return fmt.Errorf("writing model name: %w", err)
 	}
+	if request.ResponseFormat != "" {
+		fw, err = w.CreateFormField("response_format")
+		if err != nil {
+			return fmt.Errorf("creating form field: %w", err)
+		}
 
-	fw, err = w.CreateFormField("response_format")
-	if err != nil {
-		return fmt.Errorf("creating form field: %w", err)
+		responseFormat := bytes.NewReader([]byte(request.ResponseFormat))
+		if _, err = io.Copy(fw, responseFormat); err != nil {
+			return fmt.Errorf("writing response format: %w", err)
+		}
 	}
+	if request.Prompt != "" {
+		fw, err = w.CreateFormField("prompt")
+		if err != nil {
+			return fmt.Errorf("creating form field: %w", err)
+		}
 
-	responseFormat := bytes.NewReader([]byte(request.ResponseFormat))
-	if _, err = io.Copy(fw, responseFormat); err != nil {
-		return fmt.Errorf("writing response format: %w", err)
-	}
-
-	fw, err = w.CreateFormField("prompt")
-	if err != nil {
-		return fmt.Errorf("creating form field: %w", err)
-	}
-
-	prompt := bytes.NewReader([]byte(request.ResponseFormat))
-	if _, err = io.Copy(fw, prompt); err != nil {
-		return fmt.Errorf("writing prompt: %w", err)
+		prompt := bytes.NewReader([]byte(request.Prompt))
+		if _, err = io.Copy(fw, prompt); err != nil {
+			return fmt.Errorf("writing prompt: %w", err)
+		}
 	}
 
 	w.Close()
